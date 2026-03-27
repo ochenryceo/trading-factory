@@ -25,7 +25,7 @@ CLUSTER_STATE_PATH = PROJECT / "data" / "cluster_state.json"
 ORCHESTRATOR_LOG_PATH = PROJECT / "data" / "orchestrator.log"
 
 MACHINE_B = "os.getenv("MACHINE_B_IP", "localhost")"
-SSH_KEY = "/home/ochenryceo/.ssh/id_ed25519"
+SSH_KEY = os.path.expanduser("~/.ssh/id_ed25519")
 SSH = f"ssh -i {SSH_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=5 ochenryceo@{MACHINE_B}"
 
 # ── Cluster Definitions ────────────────────────────────────────────────────
