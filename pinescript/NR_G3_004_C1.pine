@@ -1,0 +1,118 @@
+//@version=5
+strategy("NR-G3-004-C1 | News Reaction Breakout", 
+     overlay=true, 
+     initial_capital=100000, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=1,
+     commission_type=strategy.commission.cash_per_contract,
+     commission_value=4.50,
+     slippage=2,
+     process_orders_on_close=false,
+     calc_on_every_tick=false)
+
+// ═══════════════════════════════════════════════════════════
+//  NR-G3-004-C1 — Pre-Event Compression Breakout
+//  Asset: NQ Futures | Timeframe: 1H
+//  Status: CONDITIONAL PAPER TRADE CANDIDATE
+//  
+//  Logic: ATR burst (>1.3x avg) + Volume spike (>1.5x avg)
+//         + Momentum direction → entry
+//  Edge: Captures volatility expansion events
+// ═══════════════════════════════════════════════════════════
+
+// ── Parameters ──────────────────────────────────────────────
+atr_mult    = input.float(1.3,  "ATR Burst Multiplier", step=0.1)
+vol_mult    = input.float(1.5,  "Volume Multiplier", step=0.1)
+atr_len     = input.int(14,     "ATR Period")
+atr_avg_len = input.int(20,     "ATR Average Period")
+vol_avg_len = input.int(20,     "Volume Average Period")
+mom_len     = input.int(3,      "Momentum Lookback")
+max_hold    = input.int(20,     "Max Hold Bars (0=disabled)", minval=0)
+
+// Optional: BB compression filter
+use_bb_filter = input.bool(true, "Use BB Compression Filter")
+bb_len      = input.int(20,     "BB Period")
+bb_std      = input.float(2.0,  "BB Std Dev")
+bb_pct_max  = input.float(15.0, "BB Width Percentile Max")
+bb_rank_len = input.int(252,    "BB Rank Lookback")
+
+// ── Indicators ──────────────────────────────────────────────
+// ATR burst detection
+_atr = ta.atr(atr_len)
+atr_avg = ta.sma(_atr, atr_avg_len)
+atr_burst = _atr > atr_avg * atr_mult
+
+// Volume spike detection
+vol_avg = ta.sma(volume, vol_avg_len)
+vol_spike = volume > vol_avg * vol_mult
+
+// Combined burst signal
+burst = atr_burst and vol_spike
+
+// BB compression filter (optional)
+[bb_mid, bb_hi, bb_lo] = ta.bb(close, bb_len, bb_std)
+bb_width = (bb_hi - bb_lo) / bb_mid
+bb_width_rank = ta.percentrank(bb_width, bb_rank_len)
+compression = bb_width_rank <= bb_pct_max
+
+// Merge: burst OR compression with lighter volume
+burst_or_compress = burst or (use_bb_filter and compression and volume > vol_avg * math.max(1.0, vol_mult * 0.6))
+
+// Momentum direction
+momentum = close - close[mom_len]
+
+// ── Entry Signals ───────────────────────────────────────────
+long_signal  = burst_or_compress and momentum > 0
+short_signal = burst_or_compress and momentum < 0
+
+// ── Position Management ─────────────────────────────────────
+var int bars_held = 0
+
+if strategy.position_size != 0
+    bars_held += 1
+else
+    bars_held := 0
+
+// Max hold exit
+max_hold_exit = max_hold > 0 and bars_held >= max_hold
+
+// Signal-based exit
+exit_long  = (not burst_or_compress) or momentum <= 0
+exit_short = (not burst_or_compress) or momentum >= 0
+
+// ── Execute Orders ──────────────────────────────────────────
+if long_signal and strategy.position_size == 0
+    strategy.entry("Long", strategy.long)
+    bars_held := 0
+
+if short_signal and strategy.position_size == 0
+    strategy.entry("Short", strategy.short)
+    bars_held := 0
+
+if strategy.position_size > 0 and (exit_long or max_hold_exit)
+    strategy.close("Long", comment=max_hold_exit ? "Max Hold" : "Signal Exit")
+
+if strategy.position_size < 0 and (exit_short or max_hold_exit)
+    strategy.close("Short", comment=max_hold_exit ? "Max Hold" : "Signal Exit")
+
+// ── Visual Indicators ───────────────────────────────────────
+bgcolor(burst ? color.new(color.red, 90) : na, title="ATR Burst Zone")
+bgcolor(compression and use_bb_filter ? color.new(color.blue, 95) : na, title="BB Compression Zone")
+plotshape(long_signal and strategy.position_size == 0, "Long Entry", shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(short_signal and strategy.position_size == 0, "Short Entry", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// ── Info Table ──────────────────────────────────────────────
+var table info = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 80))
+if barstate.islast
+    table.cell(info, 0, 0, "NR-G3-004-C1", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 0, "CONDITIONAL", text_color=color.yellow, text_size=size.small)
+    table.cell(info, 0, 1, "ATR Burst", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 1, str.tostring(atr_burst ? "🔴 ACTIVE" : "○ calm"), text_color=atr_burst ? color.red : color.gray, text_size=size.tiny)
+    table.cell(info, 0, 2, "BB Compress", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 2, str.tostring(compression ? "🔵 COMPRESSED" : "○ normal"), text_color=compression ? color.blue : color.gray, text_size=size.tiny)
+    table.cell(info, 0, 3, "Momentum", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 3, str.tostring(momentum > 0 ? "↑ UP" : "↓ DOWN"), text_color=momentum > 0 ? color.green : color.red, text_size=size.tiny)
+    table.cell(info, 0, 4, "Bars Held", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 4, str.tostring(bars_held), text_color=color.white, text_size=size.tiny)
+    table.cell(info, 0, 5, "Position", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 5, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT", text_color=strategy.position_size != 0 ? color.green : color.gray, text_size=size.tiny)

@@ -1,0 +1,40 @@
+# Environment
+.env
+*.env.local
+
+# API Keys
+services/feed/api_keys.json
+
+# Runtime data
+data/
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Logs
+*.log
+*.jsonl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+package-lock.json
+
+# Parquet backups
+parquet_full_backup/

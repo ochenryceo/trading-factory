@@ -1,0 +1,186 @@
+"""
+Trading Factory — Visual Command Center
+Main entry point with sidebar navigation.
+"""
+import streamlit as st
+import sys, os
+
+# Ensure dashboard package is importable
+sys.path.insert(0, os.path.dirname(__file__))
+
+st.set_page_config(
+    page_title="Trading Factory",
+    page_icon="🏭",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+from components.layout import inject_theme, fetch, page_header
+from components.metric_tile import metric_row
+
+inject_theme()
+
+# ── Sidebar ──────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+    <div style="text-align:center;padding:8px 0 16px 0;">
+        <div style="font-size:2rem;">🏭</div>
+        <div style="font-size:1.1rem;font-weight:800;letter-spacing:-0.5px;color:#e0e0e0;">
+            TRADING FACTORY
+        </div>
+        <div style="font-size:0.65rem;color:#555;text-transform:uppercase;letter-spacing:2px;">
+            Operations Console
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.divider()
+    st.caption("NAVIGATION")
+    st.page_link("app.py", label="🏠 Command Center", icon=None)
+    st.page_link("pages/01_pipeline.py", label="🔄 Pipeline Board")
+    st.page_link("pages/02_strategy_detail.py", label="🔍 Strategy Detail")
+    st.page_link("pages/03_performance.py", label="📊 Performance")
+    st.page_link("pages/04_kill_feed.py", label="💀 Kill Feed")
+    st.page_link("pages/05_risk_console.py", label="🛡️ Risk Console")
+    st.page_link("pages/06_research_desk.py", label="🔬 Research Desk")
+    st.page_link("pages/07_audit_trail.py", label="📝 Audit Trail")
+    st.page_link("pages/08_live_ops.py", label="⚡ Live Ops")
+    st.page_link("pages/09_live_status.py", label="📡 Live Status")
+    st.divider()
+    st.caption("SYSTEM")
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+# ── Main: Command Center Overview ────────────────────────────────────
+page_header("COMMAND CENTER", "Strategy Factory — System Overview")
+
+summary = fetch("/metrics/summary")
+risk = fetch("/risk/state")
+strategies = fetch("/strategies") or []
+
+# Load fast validation stats
+import json as _json
+_fv_path = os.path.join(os.path.dirname(__file__), "..", "data", "mock", "fast_validation_results.json")
+_fv_stats = {"total": 0, "passed": 0, "failed": 0, "pass_rate": 0.0, "avg_confidence": 0.0}
+_queue_counts = {"IMMEDIATE": 0, "BATCH": 0, "ARCHIVE": 0}
+if os.path.exists(_fv_path):
+    with open(_fv_path) as _f:
+        _fv_all = _json.load(_f)
+        _fv_stats["total"] = len(_fv_all)
+        _fv_stats["passed"] = sum(1 for r in _fv_all if r["status"] == "PASS")
+        _fv_stats["failed"] = _fv_stats["total"] - _fv_stats["passed"]
+        _fv_stats["pass_rate"] = _fv_stats["passed"] / _fv_stats["total"] * 100 if _fv_stats["total"] else 0
+        confs = [r.get("confidence", 0) for r in _fv_all]
+        _fv_stats["avg_confidence"] = sum(confs) / len(confs) if confs else 0
+        for r in _fv_all:
+            p = r.get("queue_priority", "")
+            if p in _queue_counts:
+                _queue_counts[p] += 1
+
+if summary:
+    metric_row([
+        {"label": "Total Strategies", "value": str(summary["total_strategies"]), "color": "#e0e0e0"},
+        {"label": "Active", "value": str(summary["active_strategies"]), "color": "#00c853"},
+        {"label": "Killed", "value": str(summary["killed_strategies"]), "color": "#ff1744"},
+        {"label": "Retired", "value": str(summary["retired_strategies"]), "color": "#555"},
+        {"label": "Total PnL", "value": f"${summary['total_pnl']:,.0f}", "color": "#00c853" if summary["total_pnl"] > 0 else "#ff1744"},
+        {"label": "Avg Sharpe", "value": f"{summary['avg_sharpe']:.2f}", "color": "#00e5ff"},
+        {"label": "Avg Win Rate", "value": f"{summary['avg_win_rate']*100:.1f}%", "color": "#e0e0e0"},
+    ])
+
+# Fast Validation Summary
+if _fv_stats["total"] > 0:
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    st.markdown("#### ⚡ Fast Validation Pre-Filter")
+    metric_row([
+        {"label": "FV Total", "value": str(_fv_stats["total"]), "color": "#e0e0e0"},
+        {"label": "FV Passed", "value": str(_fv_stats["passed"]), "color": "#00c853"},
+        {"label": "FV Failed", "value": str(_fv_stats["failed"]), "color": "#ff1744"},
+        {"label": "FV Pass Rate", "value": f"{_fv_stats['pass_rate']:.1f}%", "color": "#00e5ff"},
+        {"label": "Avg Confidence", "value": f"{_fv_stats['avg_confidence']:.1%}", "color": "#00e5ff"},
+        {"label": "🔴 Immediate", "value": str(_queue_counts["IMMEDIATE"]), "color": "#ff1744"},
+        {"label": "🟡 Batch", "value": str(_queue_counts["BATCH"]), "color": "#ffc107"},
+        {"label": "⚫ Archive", "value": str(_queue_counts["ARCHIVE"]), "color": "#888"},
+    ])
+
+st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+# Pipeline stage distribution
+if summary and summary.get("strategies_by_stage"):
+    st.markdown("#### 🔄 Pipeline Distribution")
+    stages_order = ["IDEA", "FAST_VALIDATION", "BACKTEST", "VALIDATION", "PAPER", "DEGRADATION", "DEPENDENCY", "MICRO_LIVE", "FULL_LIVE"]
+    stage_data = summary["strategies_by_stage"]
+    cols = st.columns(len(stages_order))
+    stage_colors_map = {
+        "IDEA": "#888", "FAST_VALIDATION": "#ff6d00", "BACKTEST": "#888", "VALIDATION": "#ffc107",
+        "PAPER": "#2979ff", "DEGRADATION": "#ffc107", "DEPENDENCY": "#ffc107",
+        "MICRO_LIVE": "#aa00ff", "FULL_LIVE": "#fff",
+    }
+    for col, stage in zip(cols, stages_order):
+        count = stage_data.get(stage, 0)
+        color = stage_colors_map.get(stage, "#888")
+        label = stage.replace("_", " ")
+        with col:
+            st.markdown(f"""
+            <div style="text-align:center;background:#161616;border:1px solid #222;border-radius:4px;padding:12px 4px;">
+                <div style="font-size:1.6rem;font-weight:800;color:{color};font-family:'JetBrains Mono',monospace;">
+                    {count}
+                </div>
+                <div style="font-size:0.6rem;color:#666;text-transform:uppercase;letter-spacing:1px;margin-top:4px;">
+                    {label}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+# Risk state
+if risk:
+    st.markdown("#### 🛡️ System Risk State")
+    mode_color = "#00c853" if risk["mode"] == "NORMAL" else "#ff1744"
+    metric_row([
+        {"label": "System Mode", "value": risk["mode"], "color": mode_color},
+        {"label": "Daily Loss", "value": f"{risk['daily_loss']*100:.2f}%", "color": "#e0e0e0"},
+        {"label": "Total Drawdown", "value": f"{risk['total_drawdown']*100:.2f}%", "color": "#e0e0e0"},
+        {"label": "Active Positions", "value": str(risk["active_positions"]), "color": "#00e5ff"},
+        {"label": "Capital at Risk", "value": f"${risk['capital_at_risk']:,.0f}", "color": "#ffc107"},
+        {"label": "Warnings", "value": str(risk["strategies_under_warning"]), "color": "#ffc107" if risk["strategies_under_warning"] > 0 else "#00c853"},
+    ])
+
+st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+# Style breakdown
+if summary and summary.get("strategies_by_style"):
+    st.markdown("#### 📊 Strategies by Style")
+    style_emojis = {"momentum": "🚀", "trend": "📈", "mean_reversion": "🔄", "scalp": "⚡", "news_reaction": "📰", "volume_flow": "🌊"}
+    style_data = summary["strategies_by_style"]
+    cols = st.columns(len(style_data))
+    for col, (style, count) in zip(cols, style_data.items()):
+        emoji = style_emojis.get(style, "📋")
+        with col:
+            st.markdown(f"""
+            <div style="text-align:center;background:#161616;border:1px solid #222;border-radius:4px;padding:10px 4px;">
+                <div style="font-size:1.2rem;">{emoji}</div>
+                <div style="font-size:1.4rem;font-weight:700;color:#e0e0e0;font-family:'JetBrains Mono',monospace;">{count}</div>
+                <div style="font-size:0.6rem;color:#666;text-transform:uppercase;letter-spacing:0.5px;">{style.replace('_',' ')}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# Top performers quick view
+if strategies:
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    st.markdown("#### 🏆 Top Performers (by Rank)")
+    top = sorted([s for s in strategies if s.get("current_rank")], key=lambda x: x["current_rank"])[:5]
+    for s in top:
+        pnl = s.get("latest_pnl", 0)
+        pc = "#00c853" if pnl > 0 else "#ff1744"
+        st.markdown(f"""
+        <div style="display:flex;gap:16px;align-items:center;padding:6px 12px;background:#161616;border:1px solid #222;border-radius:4px;margin-bottom:4px;font-size:0.8rem;">
+            <span style="font-weight:700;color:#00e5ff;width:30px;">#{s['current_rank']}</span>
+            <span style="font-weight:700;font-family:'JetBrains Mono',monospace;width:80px;">{s['strategy_code']}</span>
+            <span style="color:#888;flex:1;">{s['name']}</span>
+            <span style="color:{pc};font-family:'JetBrains Mono',monospace;">{'+' if pnl>0 else ''}${pnl:,.0f}</span>
+            <span style="color:#888;font-family:'JetBrains Mono',monospace;">S:{s.get('latest_sharpe',0):.2f}</span>
+            <span style="color:#888;font-family:'JetBrains Mono',monospace;">{s['current_stage'].replace('_',' ')}</span>
+        </div>
+        """, unsafe_allow_html=True)

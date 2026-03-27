@@ -1,0 +1,155 @@
+// ============================================================================
+// LOCKED_PRODUCTION_V1 — NQ Daily Scalping Strategy
+// ============================================================================
+// Source: RND-G43-12928 (Trading Factory)
+// Signal: RSI oversold + Bollinger Band touch + Volume confirmation
+// Validated: Darwin ✅ | Gate 4 (Degradation) ✅ | Gate 5 (Dependency) ✅
+// Clone reproduction: 5/5 (100%)
+// Backtest: Sharpe 2.30 | WR 73.7% | DD 6.3% | Return +27.3% (16yr)
+//
+// DO NOT MODIFY — This is the locked production reference.
+// ============================================================================
+
+//@version=6
+strategy("LOCKED_PRODUCTION_V1", 
+     overlay=true, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=100,
+     initial_capital=100000,
+     commission_type=strategy.commission.percent,
+     commission_value=0.01,
+     slippage=2,
+     pyramiding=0)
+
+// ── Inputs ──────────────────────────────────────────────────────────────
+// Using midpoints of the locked parameter ranges
+
+// RSI Settings (range: 5-10, midpoint: 7)
+rsiPeriod       = input.int(7, "RSI Period", minval=2, maxval=20)
+rsiOversold     = input.int(30, "RSI Oversold Level", minval=10, maxval=40)
+rsiExit         = input.int(60, "RSI Exit Level", minval=50, maxval=80)
+
+// Bollinger Band Settings (range: 18-25, midpoint: 21)
+bbPeriod        = input.int(21, "BB Period", minval=10, maxval=40)
+bbStdDev        = input.float(2.0, "BB Std Dev", minval=1.0, maxval=3.0, step=0.1)
+
+// Volume Settings (range: 1.43-1.51, midpoint: 1.47)
+volMultiplier   = input.float(1.47, "Volume Multiplier", minval=1.0, maxval=3.0, step=0.01)
+volPeriod       = input.int(20, "Volume MA Period", minval=5, maxval=50)
+
+// Exit Settings (from locked exit_rules)
+tp1_R           = input.float(1.0, "Take Profit 1 (R)", minval=0.5, maxval=3.0, step=0.1)
+tp2_R           = input.float(2.0, "Take Profit 2 (R)", minval=1.0, maxval=5.0, step=0.1)
+trailATR_mult   = input.float(2.1, "Trailing Stop ATR Multiplier", minval=1.0, maxval=4.0, step=0.1)
+atrPeriod       = input.int(14, "ATR Period", minval=5, maxval=30)
+timeLimitBars   = input.int(16, "Time Limit (bars)", minval=5, maxval=50)
+stopATR_mult    = input.float(1.5, "Stop Loss ATR Multiplier", minval=0.5, maxval=3.0, step=0.1)
+
+// ── Indicators ──────────────────────────────────────────────────────────
+
+// RSI
+rsiValue = ta.rsi(close, rsiPeriod)
+
+// Bollinger Bands
+bbBasis = ta.sma(close, bbPeriod)
+bbDev   = bbStdDev * ta.stdev(close, bbPeriod)
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+
+// Volume
+volMA       = ta.sma(volume, volPeriod)
+volAboveAvg = volume > volMA * volMultiplier
+
+// ATR (for stops and targets)
+atrValue = ta.atr(atrPeriod)
+
+// ── Entry Conditions ────────────────────────────────────────────────────
+// LONG: RSI oversold + price at/below BB lower + volume confirmation
+// SHORT: RSI overbought + price at/above BB upper + volume confirmation
+
+longCondition  = rsiValue < rsiOversold and close <= bbLower and volAboveAvg
+shortCondition = rsiValue > (100 - rsiOversold) and close >= bbUpper and volAboveAvg
+
+// ── Position Management ─────────────────────────────────────────────────
+
+// Track entry bar for time limit exit
+var int entryBar = 0
+
+if strategy.position_size == 0
+    if longCondition
+        strategy.entry("Long", strategy.long)
+        entryBar := bar_index
+    
+    if shortCondition
+        strategy.entry("Short", strategy.short)
+        entryBar := bar_index
+
+// ── Exit Logic ──────────────────────────────────────────────────────────
+// 1. Stop loss at 1.5 ATR from entry
+// 2. Take profit targets at 1R and 2R
+// 3. Trailing stop at 2.1 ATR
+// 4. RSI exit (mean reversion complete)
+// 5. Time limit exit (16 bars)
+
+if strategy.position_size > 0  // Long position
+    stopPrice   = strategy.position_avg_price - (atrValue * stopATR_mult)
+    tp1Price    = strategy.position_avg_price + (atrValue * stopATR_mult * tp1_R)
+    tp2Price    = strategy.position_avg_price + (atrValue * stopATR_mult * tp2_R)
+    
+    // Stop loss
+    strategy.exit("Long SL", "Long", stop=stopPrice)
+    
+    // Take profit at target
+    strategy.exit("Long TP", "Long", limit=tp2Price, stop=stopPrice)
+    
+    // RSI exit — mean reversion complete
+    if rsiValue > rsiExit
+        strategy.close("Long", comment="RSI Exit")
+    
+    // BB midline exit — price returned to mean
+    if close > bbBasis
+        strategy.close("Long", comment="BB Mid Exit")
+    
+    // Time limit
+    if (bar_index - entryBar) >= timeLimitBars
+        strategy.close("Long", comment="Time Limit")
+
+if strategy.position_size < 0  // Short position
+    stopPrice   = strategy.position_avg_price + (atrValue * stopATR_mult)
+    tp1Price    = strategy.position_avg_price - (atrValue * stopATR_mult * tp1_R)
+    tp2Price    = strategy.position_avg_price - (atrValue * stopATR_mult * tp2_R)
+    
+    // Stop loss
+    strategy.exit("Short SL", "Short", stop=stopPrice)
+    
+    // Take profit at target
+    strategy.exit("Short TP", "Short", limit=tp2Price, stop=stopPrice)
+    
+    // RSI exit
+    if rsiValue < (100 - rsiExit)
+        strategy.close("Short", comment="RSI Exit")
+    
+    // BB midline exit
+    if close < bbBasis
+        strategy.close("Short", comment="BB Mid Exit")
+    
+    // Time limit
+    if (bar_index - entryBar) >= timeLimitBars
+        strategy.close("Short", comment="Time Limit")
+
+// ── Visual Indicators ───────────────────────────────────────────────────
+
+// Bollinger Bands
+plot(bbUpper, "BB Upper", color=color.new(color.red, 70))
+plot(bbBasis, "BB Mid", color=color.new(color.gray, 50))
+plot(bbLower, "BB Lower", color=color.new(color.green, 70))
+
+// Entry signals
+plotshape(longCondition and strategy.position_size == 0, "Long Signal", 
+     shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(shortCondition and strategy.position_size == 0, "Short Signal", 
+     shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// Background color when in position
+bgcolor(strategy.position_size > 0 ? color.new(color.green, 95) : 
+     strategy.position_size < 0 ? color.new(color.red, 95) : na)

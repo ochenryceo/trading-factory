@@ -1,0 +1,59 @@
+// ============================================================================
+// LOCKED_PRODUCTION_V1 v2 — NQ Daily Scalping Strategy
+// ============================================================================
+// EXACT match to Python backtester logic:
+// - RSI(7) < 30 + close <= BB Lower(20,2) + volume > 1.47x avg = LONG entry
+// - Signal goes flat (conditions no longer met) = EXIT
+// - LONG ONLY (matches backtester: entry_signals = signals > 0)
+// - Simple position model: enter on signal, exit when signal stops
+// ============================================================================
+
+//@version=6
+strategy("LOCKED_PRODUCTION_V1", 
+     overlay=true, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=100,
+     initial_capital=100000,
+     commission_type=strategy.commission.percent,
+     commission_value=0.01,
+     slippage=0,
+     pyramiding=0)
+
+// ── Indicators (hardcoded to match Python backtester exactly) ───────────
+// RSI period = 7 (hardcoded in backtester for "scalping" style)
+rsiValue = ta.rsi(close, 7)
+
+// Bollinger Bands period = 20, std = 2.0 (hardcoded in backtester)
+bbBasis = ta.sma(close, 20)
+bbDev   = 2.0 * ta.stdev(close, 20)
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+
+// Volume: 20-period average, multiplier = 1.47 (midpoint of [1.43, 1.51])
+volMA       = ta.sma(volume, 20)
+volAboveAvg = volume > volMA * 1.47
+
+// ── Signal Generation (exact match to Python) ───────────────────────────
+// Long signal: RSI < 30 AND close <= BB lower AND volume above threshold
+longSignal = rsiValue < 30 and close <= bbLower and volAboveAvg
+
+// Exit signal: long signal is no longer true (signal goes flat)
+// In Python: position opens when signal=1, closes when signal<=0
+exitSignal = not longSignal
+
+// ── Execution (long only, matches backtester) ───────────────────────────
+if longSignal and strategy.position_size == 0
+    strategy.entry("Long", strategy.long)
+
+if exitSignal and strategy.position_size > 0
+    strategy.close("Long", comment="Signal Exit")
+
+// ── Visuals ─────────────────────────────────────────────────────────────
+plot(bbUpper, "BB Upper", color=color.new(color.red, 70))
+plot(bbBasis, "BB Mid", color=color.new(color.gray, 50))
+plot(bbLower, "BB Lower", color=color.new(color.green, 70))
+
+plotshape(longSignal and strategy.position_size == 0, "Long Signal", 
+     shape.triangleup, location.belowbar, color.green, size=size.small)
+
+bgcolor(strategy.position_size > 0 ? color.new(color.green, 95) : na)

@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6366f1;
+  --color-primary-dim: rgba(99, 102, 241, 0.15);
+  --color-secondary: #06b6d4;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-muted: #64748b;
+  --color-text: #e2e8f0;
+  --color-bg: #0a0a1a;
+  --color-card: rgba(15, 20, 40, 0.7);
+  --color-card-border: rgba(99, 102, 241, 0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0a0a1a;
+  color: #e2e8f0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(99, 102, 241, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 50%),
+    #0a0a1a;
+}
+
+/* ── Glass Card ── */
+.glass-card {
+  background: rgba(15, 20, 40, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 1px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: all 0.3s ease;
+}
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 1px 4px rgba(0, 0, 0, 0.2),
+    0 0 20px rgba(99, 102, 241, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.glass-card-active {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(99, 102, 241, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.badge-cyan { background: rgba(6, 182, 212, 0.15); color: #06b6d4; border: 1px solid rgba(6, 182, 212, 0.3); }
+.badge-indigo { background: rgba(99, 102, 241, 0.15); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); }
+.badge-green { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-gray { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
+
+/* ── Status Bar ── */
+.status-bar {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+}
+.status-bar-green { background: linear-gradient(90deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.06)); }
+.status-bar-yellow { background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.06)); }
+.status-bar-red { background: linear-gradient(90deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06)); }
+
+/* ── Progress Bars ── */
+.progress-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 10px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.5s ease, background 0.3s ease;
+}
+.progress-dd-safe { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.progress-dd-caution { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.progress-dd-warning { background: linear-gradient(90deg, #f97316, #fb923c); }
+.progress-dd-danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+/* ── Glow text ── */
+.glow-text {
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.5), 0 0 40px rgba(99, 102, 241, 0.2);
+}
+.glow-cyan {
+  text-shadow: 0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.2);
+}
+.glow-green {
+  text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+}
+.glow-red {
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+/* ── Animations ── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
+  50% { border-color: rgba(239, 68, 68, 0.8); }
+}
+@keyframes pulse-amber {
+  0%, 100% { border-color: rgba(245, 158, 11, 0.3); }
+  50% { border-color: rgba(245, 158, 11, 0.7); }
+}
+@keyframes awaiting-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-pulse-border { animation: pulse-border 1.5s ease-in-out infinite; }
+.animate-pulse-amber { animation: pulse-amber 1.5s ease-in-out infinite; }
+.animate-awaiting { animation: awaiting-pulse 2s ease-in-out infinite; }
+.animate-slide-in { animation: slide-in 0.3s ease; }
+
+/* ── Strategy Table ── */
+.strategy-row {
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+.strategy-row:hover {
+  background: rgba(99, 102, 241, 0.05);
+}
+.strategy-row-positive {
+  border-left-color: rgba(34, 197, 94, 0.5);
+}
+.strategy-row-negative {
+  border-left-color: rgba(239, 68, 68, 0.4);
+}
+.strategy-row-top {
+  border-left-color: rgba(34, 197, 94, 0.8);
+  background: rgba(34, 197, 94, 0.03);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.5); }
+
+/* ── Sparkline container ── */
+.sparkline-container {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+/* ── Circular gauge ── */
+.circular-gauge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.circular-gauge svg {
+  transform: rotate(-90deg);
+}
+.circular-gauge-label {
+  position: absolute;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
