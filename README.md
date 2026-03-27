@@ -1,6 +1,6 @@
 # 🏭 Trading Factory
 
-Multi-agent strategy factory and trading operations platform for futures trading (NQ, GC, CL).
+Autonomous strategy discovery engine using evolutionary algorithms. Backtests thousands of futures strategies (NQ, GC, CL) across multiple timeframes with Darwin selection, Monte Carlo validation, ATR regime gating, and a 10-check production gate.
 
 ## Quick Start
 
@@ -9,7 +9,6 @@ Multi-agent strategy factory and trading operations platform for futures trading
 docker compose up --build -d
 
 # API available at http://localhost:8000
-# Dashboard available at http://localhost:8501
 # API docs at http://localhost:8000/docs
 ```
 
@@ -17,9 +16,6 @@ docker compose up --build -d
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  Streamlit Dashboard                 │
-│            (Visual Command Center)                   │
-├─────────────────────────────────────────────────────┤
 │                   FastAPI Backend                     │
 │            (REST API + Business Logic)               │
 ├───────────────────┬─────────────────────────────────┤
@@ -41,51 +37,94 @@ IDEA → BACKTEST → VALIDATION → PAPER → DEGRADATION → DEPENDENCY → MI
 - **Python 3.11+**, FastAPI, SQLAlchemy 2.0 (async), asyncpg
 - **PostgreSQL 16** — 8 tables for full lifecycle tracking
 - **Redis 7** — caching and event streaming
-- **Streamlit** — visual operations console
 - **Docker Compose** — one-click deployment
 
 ## API Endpoints
 
 | Endpoint | Description |
 |---|---|
-| `GET /strategies` | All strategies with metrics |
-| `GET /strategies/{id}` | Full strategy detail |
-| `GET /pipeline` | Grouped by stage (Kanban) |
-| `GET /metrics/summary` | Dashboard totals |
-| `GET /events/kill-feed` | Kills, failures, risk events |
-| `GET /risk/state` | Global risk posture |
-| `GET /research/styles` | Trader inspirations by style |
-| `GET /audit` | Filtered audit history |
-| `GET /live-ops` | Active signals and live activity |
+| `GET /strategies` | List all strategies |
+| `GET /strategies/{id}` | Get strategy details |
+| `POST /strategies` | Create new strategy |
+| `GET /backtest/{id}` | Get backtest results |
+| `POST /backtest/run` | Run backtest |
+| `GET /health` | Service health check |
 
-## Database Tables
+## Core Services
 
-1. **strategies** — core identity and lifecycle state
-2. **strategy_metrics** — performance by stage and date
-3. **strategy_history** — immutable stage transition ledger
-4. **audit_log** — every system event
-5. **trade_explanations** — why trades won or lost
-6. **research_sources** — trader inspiration
-7. **strategy_research_links** — strategy ↔ research mapping
-8. **overrides** — override attempts and approvals
+### Strategy Discovery
+- **Evolutionary algorithms** — genetic operators, crossover, mutation
+- **Multi-timeframe backtesting** — 5m, 15m, 30m, 1h, 4h, daily
+- **Darwin selection** — fitness-based survival with production gate
+- **Search expansion** — ATR regime gating, conditional strategies
 
-## Seed Data
+### Validation Pipeline
+- **Monte Carlo** — 1000+ random entry permutations
+- **Walk-forward testing** — rolling window validation
+- **Production gate** — 10 checks across 3 stages
+- **Paper trading** — NinjaTrader webhook integration
 
-On first startup, the API service automatically seeds 25 realistic mock strategies across all pipeline stages with metrics, trade explanations, research sources, audit logs, and override examples.
+### Risk Management
+- **Real-time monitoring** — drift detection, degradation alerts
+- **Kill switches** — automatic strategy shutdown
+- **Portfolio limits** — capital allocation, correlation checks
+- **Alert system** — Discord integration for critical events
+
+## Data Sources
+
+- **Databento** — NQ, GC, CL futures data
+- **Multi-timeframe aggregation** — OHLCV + volume profile
+- **Real-time feeds** — market context, ATR regimes
+- **Economic events** — news sentiment, volatility clustering
+
+## Execution
+
+### Paper Trading
+- NinjaTrader integration via webhooks
+- Real-time signal routing
+- Performance tracking and validation
+- Automatic promotion to live trading
+
+### Live Trading
+- Production-ready execution engine
+- Risk limits and position sizing
+- Real-time P&L tracking
+- Compliance and audit trails
+
+## Configuration
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://factory:your_password@localhost:5432/trading_factory
+
+# Data provider
+DATABENTO_API_KEY=your_databento_key_here
+
+# Webhook secrets
+WEBHOOK_SECRET=your_webhook_secret
+NINJA_SECRET=your_ninja_secret
+
+# Discord alerts (optional)
+DISCORD_CEO_CHANNEL=your_channel_id
+DISCORD_ALERTS_CHANNEL=your_channel_id
+DISCORD_SYSTEM_CHANNEL=your_channel_id
+```
 
 ## Development
 
 ```bash
-# Run locally (without Docker)
+# Install dependencies
 pip install -r requirements.txt
-export DATABASE_URL=postgresql+asyncpg://factory:your_password_here@localhost:5432/trading_factory
-python scripts/seed.py
-uvicorn main:app --reload --port 8000
+
+# Run database migrations
+python scripts/schema.sql
+
+# Start development server
+python main.py
 ```
 
-## Environment Variables
+## License
 
-See `.env` for all configuration. Key variables:
-- `DATABASE_URL` — PostgreSQL async connection string
-- `REDIS_URL` — Redis connection
-- `DATABENTO_API_KEY` — Market data API key
+MIT License - see LICENSE file for details.
