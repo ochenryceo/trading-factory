@@ -42,17 +42,5 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile.dashboard
-    environment:
-      API_URL: http://api:8000
-    ports:
-      - "8501:8501"
-    depends_on:
-      - api
-    restart: unless-stopped
-
 volumes:
   pgdata:
